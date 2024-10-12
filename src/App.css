@@ -12,8 +12,11 @@ body {
 }
 
 #main-grid {
-  padding: 1rem;
-  padding-right: 2rem;
+  height: 80vh;
+
+  padding-right: 1rem;
+  padding-bottom: 1rem;
+
   overflow: auto;
 }
 
@@ -80,12 +83,17 @@ body {
   height: 30px;
 
   font-size: 1rem;
+  text-decoration-thickness: 5px;
 
   outline: 1px solid black;
 }
 
+.cell.focused {
+  box-shadow: inset 0 0 0 2px blue, inset -1px -1px 0 2px blue;
+}
+
 .cell:focus {
-  box-shadow: inset 0px 0px 5px red;
+  box-shadow: inset 0 0 0 2px blue, inset -1px -1px 0 2px blue;
 }
 
 .cell-data {
@@ -95,6 +103,10 @@ body {
   display: flex;
   align-items: center;
 
+  text-wrap: nowrap;
+
+  padding: 2px;
+
   background-color: transparent;
 
   user-select: none;
@@ -102,10 +114,11 @@ body {
 
 .cell-input {
   width: 100%;
-  height: 30px;
+  height: 100%;
 
   font-size: 1rem;
 
+  padding: 2px;
   border: none;
 
   outline: 1px solid black;
@@ -113,6 +126,50 @@ body {
 }
 
 .cell-input:focus {
+  box-shadow: inset 0 0 0 2px blue, inset -1px -1px 0 2px blue;
+}
+
+.toogle-cell-props label {
+  width: 20px;
+  height: 20px;
+
+  display: flex;
+  justify-content: center;
+
+  background-color: rgba(128, 128, 128, 0.233);
+
+  border: 1px solid black;
+
+  cursor: pointer;
+  user-select: none;
+}
+
+.toogle-cell-props label:hover {
+  background-color: aliceblue;
+}
+
+.toogle-cell-props input:checked+label {
+  box-shadow: inset 0 0 3px black;
+  background-color: aliceblue;
+}
+
+.toogle-cell-props input:disabled+label {
+  opacity: .5;
+  cursor: initial;
+}
+
+.merge-button input {
+  width: 50px;
+  height: 25px;
+
+  background-color: rgba(128, 128, 128, 0.151);
+
   border: none;
-  box-shadow: inset 0px 0px 5px red;
+  outline: 1px solid black;
+
+  cursor: pointer;
+}
+
+.merge-button input:disabled {
+  opacity: .5;
 }
