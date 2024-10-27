@@ -173,3 +173,14 @@ body {
 .merge-button input:disabled {
   opacity: .5;
 }
+
+.download-button input {
+
+  background-color: rgba(190, 188, 188, 0.514);
+
+  padding: .5rem;
+
+  border: 1px solid black;
+
+  cursor: pointer;
+}

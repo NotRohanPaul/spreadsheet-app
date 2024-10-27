@@ -1,14 +1,14 @@
-import {
-    ChangeEvent,
-    FocusEvent,
-    memo,
-    useCallback,
-    useEffect,
-    useRef,
-    useState
-} from "react";
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { FocusEvent, lazy, useCallback, useEffect, useRef, useState } from "react";
+import { rgbToHex } from "./utils";
+import { RowHeader } from './Headers';
+import { ColumnHeader } from './Headers';
 
-interface CellProps {
+
+const Cell = lazy(() => import('./Cell'));
+const CellPropertiesForm = lazy(() => import('./CellPropertiesForm'));
+
+export interface CellProps {
     id: string | null,
     cellData: string,
     bgColor: string,
@@ -19,36 +19,14 @@ interface CellProps {
     isStrikethrough: boolean,
 }
 
-const rgbToHex = (rgb: string): string => {
-    const result = rgb.match(/\d+/g);
-    if (result && result.length === 3) {
-        const [r, g, b] = result.map(Number);
-        return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase()}`;
-    }
-    return rgb;
-};
-
-const indexToAlphabetHeaders = (index: number): string | undefined => {
-    if (index === undefined || index < 0) return;
-
-    let alphabets = '';
-    while (index >= 0) {
-        alphabets = String.fromCharCode(65 + (index % 26)) + alphabets;
-        index = Math.floor(index / 26) - 1;
-        if (index < 0) break;
-    }
-    return alphabets;
-}
-
-
 // Main Excel Component
 export default function Excel() {
-    const COLUMN_LIMIT = 10;
-    const ROW_LIMIT = 10;
+    const COLUMN_LIMIT = 15;
+    const ROW_LIMIT = 25;
 
     const [cellsData, setCellsData] = useState<Array<Array<CellProps>>>([]);
     const [inputCellId, setInputCellId] = useState<string | null>(null);
-    const [editableCellProps, setEditableCellProps] = useState<Record<string, any>>({
+    const [editableCellProps, setEditableCellProps] = useState<Record<string, string | boolean>>({
         bgColor: '#ffffff',
         textColor: '#000000',
         fontFamily: 'sans-serif',
@@ -58,18 +36,20 @@ export default function Excel() {
     });
 
     const [focusedCell, setFocusedCell] = useState<HTMLElement | null>(null);
+    const [lastFocusedCellId, setLastFocusedCellId] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-
+    const localStorageDelay = useRef<number | null>(null)
     // Initialize cells
     useEffect(() => {
         const savedCellsData = localStorage.getItem('excelCellsData');
-
-        if (savedCellsData) {
+        const savedRowLimit = Number(localStorage.getItem('ROW_LIMIT'));
+        const savedColumnLimit = Number(localStorage.getItem('COLUMN_LIMIT'));
+        if (savedCellsData && savedRowLimit === ROW_LIMIT && savedColumnLimit === COLUMN_LIMIT) {
             setCellsData(JSON.parse(savedCellsData));
         } else {
             const createCellArr = () => {
-                const newCellsData = Array.from({ length: COLUMN_LIMIT }, (_, i) =>
-                    Array.from({ length: ROW_LIMIT }, (_, j) => ({
+                const newCellsData = Array.from({ length: ROW_LIMIT }, (_, i) =>
+                    Array.from({ length: COLUMN_LIMIT }, (_, j) => ({
                         id: `${i}-${j}`,
                         cellData: "",
                         bgColor: "#ffffff",
@@ -88,20 +68,74 @@ export default function Excel() {
 
     // Save excel data to localStorage
     useEffect(() => {
-        if (cellsData.length > 0) {
-            localStorage.setItem('excelCellsData', JSON.stringify(cellsData));
+        if (localStorageDelay.current) {
+            clearTimeout(localStorageDelay.current);
         }
+
+        localStorageDelay.current = setTimeout(() => {
+            if (cellsData.length > 0) {
+                localStorage.setItem('excelCellsData', JSON.stringify(cellsData));
+                localStorage.setItem('ROW_LIMIT', ROW_LIMIT.toString());
+                localStorage.setItem('COLUMN_LIMIT', COLUMN_LIMIT.toString());
+            }
+        }, 1000);
+        { console.log(cellsData) }
+
+        return () => {
+            if (localStorageDelay.current) {
+                clearTimeout(localStorageDelay.current);
+            }
+        }
+
     }, [cellsData]);
+
+    useEffect(() => {
+        const handleOutsideClick = (e: MouseEvent) => {
+            const grid = document.querySelector("#cell-grid");
+
+            if (focusedCell) {
+                if (!grid?.contains(e.target as Node)) {
+                    focusedCell.classList.add("focused");
+                }
+            }
+        };
+
+        document.addEventListener("mousedown", handleOutsideClick);
+        return () => {
+            document.removeEventListener("mousedown", handleOutsideClick);
+        };
+    }, [focusedCell]);
+
+    useEffect(() => {
+        const handleTabPress = (e: KeyboardEvent) => {
+            if (e.key === "Tab") {
+                const grid = document.querySelector("#cell-grid");
+                const activeElement = document.activeElement;
+
+                if (activeElement && !grid?.contains(activeElement) && lastFocusedCellId) {
+                    e.preventDefault();
+                    const lastCell = document.getElementById(lastFocusedCellId + "-cell");
+                    lastCell?.focus();
+                }
+            }
+        };
+
+        document.addEventListener("keydown", handleTabPress);
+        return () => {
+            document.removeEventListener("keydown", handleTabPress);
+        };
+    }, [lastFocusedCellId]);
 
 
     const handleCellFocus = (e: FocusEvent<HTMLElement>) => {
         const target = e.target as HTMLElement;
         if (target.closest('.cell')) {
             const cell = target.closest('.cell') as HTMLElement;
-            cell.ondblclick = () => setInputCellId(cell.id.split("-").slice(0, -1).join('-'));
+            const cellId = cell.id.split("-").slice(0, -1).join('-');
+            cell.ondblclick = () => setInputCellId(cellId);
             cell.onkeydown = (e) => {
                 if (e.key === "Enter")
-                    setInputCellId(cell.id.split("-").slice(0, -1).join('-'));
+                    setInputCellId(cellId);
             }
 
             setEditableCellProps({
@@ -119,30 +153,11 @@ export default function Excel() {
 
             cell.classList.add("focused");
             setFocusedCell(cell);
+            setLastFocusedCellId(cellId);
         }
     };
 
-
-    useEffect(() => {
-        const handleOutsideClick = (e: MouseEvent) => {
-            const grid = document.querySelector("#cell-grid");
-
-            if (focusedCell) {
-                // Check if click is outside the grid
-                if (!grid?.contains(e.target as Node)) {
-                    focusedCell.classList.add("focused"); // Retain shadow
-                }
-            }
-        };
-
-        document.addEventListener("mousedown", handleOutsideClick);
-        return () => {
-            document.removeEventListener("mousedown", handleOutsideClick);
-        };
-    }, [focusedCell]);
-
-
-    const handleCellPropChange = useCallback((e: React.SyntheticEvent<any>, cellProp: keyof CellProps) => {
+    const handleCellPropChange = useCallback((e: React.SyntheticEvent<Element>, cellProp: keyof CellProps) => {
         e.preventDefault();
         if (focusedCell) {
             let updatedValue;;
@@ -227,6 +242,28 @@ export default function Excel() {
         setInputCellId(null);
     };
 
+    const handleDownload = () => {
+        try {
+            const csv = cellsData.map((row) => {
+                return (row.map((col) => col.cellData).join(",") + ",\n")
+            }).join("")
+            const link = document.createElement("a");
+
+            const file = new Blob([csv], { type: 'text/plain' });
+
+            link.href = URL.createObjectURL(file);
+
+            link.download = "excel.csv";
+
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+        catch (err) {
+            console.warn(err);
+        }
+    };
+
+
     return (
         <section id="excel">
             <h1>Excel Component</h1>
@@ -235,6 +272,7 @@ export default function Excel() {
                 handleCellPropChange={handleCellPropChange}
                 handleCellMerge={handleCellMerge}
                 focusedCell={focusedCell}
+                handleDownload={handleDownload}
             />
 
             <div id="main-grid">
@@ -266,218 +304,3 @@ export default function Excel() {
     );
 }
 
-function CellPropertiesForm({
-    editableCellProps,
-    handleCellPropChange,
-    handleCellMerge,
-    focusedCell
-}: {
-    editableCellProps?: Record<string, string>,
-    handleCellPropChange: (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>, cellProp: any) => void,
-    handleCellMerge: () => void,
-    focusedCell: HTMLElement | null
-}) {
-    const [localProps, setLocalProps] = useState(editableCellProps);
-
-    // Update local state whenever focusedCell changes (to reflect the new focused cell's properties)
-    useEffect(() => {
-        setLocalProps(editableCellProps);
-    }, [editableCellProps]);
-
-    const handleLocalChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>, prop: string) => {
-        setLocalProps((prevProps) => ({
-            ...prevProps,
-            [prop]: e.target.value
-        }));
-    };
-
-    return (
-        <form id="cell-properties" onSubmit={e => e.preventDefault()}>
-            <div>
-                <label htmlFor="cell-bg-color">BG-Color: &nbsp;</label>
-                <input
-                    id="cell-bg-color"
-                    type="color"
-                    value={localProps?.bgColor || '#ffffff'}
-                    disabled={focusedCell === null}
-                    onChange={(e) => handleLocalChange(e, "bgColor")}
-                    onBlur={(e) => handleCellPropChange(e, "bgColor")}
-                />
-            </div>
-            <div>
-                <label htmlFor="cell-text-color">Text-Color: &nbsp;</label>
-                <input
-                    id="cell-text-color"
-                    type="color"
-                    value={localProps?.textColor || '#000000'}
-                    disabled={focusedCell === null}
-                    onChange={(e) => handleLocalChange(e, "textColor")}
-                    onBlur={(e) => handleCellPropChange(e, "textColor")}
-                />
-            </div>
-            <div >
-                <label htmlFor="cell-font-family">Font-Family: &nbsp;</label>
-                <select
-                    name="cell-font-family"
-                    id="cell-font-family"
-                    value={localProps?.fontFamily || 'sans-serif'}
-                    disabled={focusedCell === null}
-                    onChange={(e) => handleCellPropChange(e, "fontFamily")}
-                >
-                    <option value="sans">sans</option>
-                    <option value="sans-serif">sans-serif</option>
-                    <option value="cursive">cursive</option>
-                    <option value="monospace">monospace</option>
-                    <option value="fantasy">fantasy</option>
-                </select>
-            </div>
-
-            <div className="toogle-cell-props">
-                <input
-                    id="cell-bold"
-                    type="checkbox"
-                    checked={!!editableCellProps?.isBold}
-                    disabled={focusedCell === null}
-                    // @ts-ignore types are correct but showing error
-                    onClick={(e) => handleCellPropChange(e, "isBold")}
-                    hidden
-                />
-                <label htmlFor="cell-bold" style={{ fontWeight: "bold" }}>B</label>
-            </div>
-            <div className="toogle-cell-props">
-                <input
-                    id="cell-italic"
-                    type="checkbox"
-                    checked={!!editableCellProps?.isItalic}
-                    disabled={focusedCell === null}
-                    // @ts-ignore types are correct but showing error
-                    onClick={(e) => handleCellPropChange(e, "isItalic")}
-                    hidden
-                />
-                <label htmlFor="cell-italic" style={{ fontStyle: "italic" }}>I</label>
-            </div>
-            <div className="toogle-cell-props">
-                <input
-                    id="cell-strikethrough"
-                    type="checkbox"
-                    checked={!!editableCellProps?.isStrikethrough}
-                    disabled={focusedCell === null}
-                    // @ts-ignore types are correct but showing error
-                    onClick={(e) => handleCellPropChange(e, "isStrikethrough")}
-                    hidden
-                />
-                <label htmlFor="cell-strikethrough" style={{ textDecoration: "line-through" }}>S</label>
-            </div>
-
-            <div className="merge-button">
-                <input
-                    id="cell-strikethrough"
-                    type="button"
-                    value="Merge"
-                    disabled={focusedCell === null}
-                    // @ts-ignore types are correct but showing error
-                    onClick={handleCellMerge}
-                />
-            </div>
-        </form>
-    );
-}
-
-
-
-
-
-function ColumnHeader({ columnLimit }: { columnLimit: number }) {
-    return (
-        <div id="column-header"
-            style={{
-                width: `calc(100px * ${columnLimit})`,
-            }}
-        >
-            {Array.from({ length: columnLimit }, (_, i) => (
-                <div key={"column-header-" + i} className="col-header">
-                    {indexToAlphabetHeaders(i)}
-                </div>
-            ))}
-        </div>
-    );
-}
-
-function RowHeader({ rowLimit }: { rowLimit: number }) {
-    return (
-        <div id="row-header">
-            {Array.from({ length: rowLimit }, (_, i) => (
-                <div key={"row-header-" + i} className="r-header">
-                    {i + 1}
-                </div>
-            ))}
-        </div>
-    );
-}
-
-const Cell = memo(({
-    cell,
-    inputCellId,
-    handleInputBlur,
-}: any) => {
-    const inputCellRef = useRef<HTMLInputElement>(null);
-
-    // Focus input when cell is clicked
-    useEffect(() => {
-        if (inputCellRef.current) {
-            inputCellRef.current.focus();
-        }
-    }, [inputCellId]);
-
-    const handleBlur = useCallback(() => {
-        if (inputCellRef.current) {
-            const updatedValue = inputCellRef.current.value;
-            handleInputBlur(cell.id, updatedValue);
-
-            const parentCell = inputCellRef.current.closest('.cell') as HTMLElement;
-            parentCell.classList.remove("focused");
-        }
-
-    }, [cell.id, handleInputBlur]);
-
-
-    return (
-        <div
-            id={cell.id + "-cell"}
-            className="cell"
-            style={{
-                backgroundColor: cell.bgColor,
-                color: cell.textColor,
-                fontFamily: cell.fontFamily,
-                fontWeight: cell.isBold ? "bold" : "normal",
-                fontStyle: cell.isItalic ? "italic" : "normal",
-                textDecoration: cell.isStrikethrough ? "line-through" : "none",
-            }}
-            role="button"
-            tabIndex={0}
-        >
-            {inputCellId !== cell.id ?
-                <p className="cell-data" id={(cell.id) + "-data"}>
-                    {cell.cellData}
-                </p>
-                :
-                (
-                    <input
-                        key={cell.id}
-                        id={(cell.id) + "-input"}
-                        className="cell-input"
-                        type="text"
-                        defaultValue={cell.cellData}
-                        ref={inputCellRef}
-                        style={{
-                            backgroundColor: cell.bgColor,
-                            color: cell.textColor,
-                            fontFamily: cell.fontFamily,
-                        }}
-                        onBlur={handleBlur}
-                    />
-                )
-            }
-        </div>
-    );
-});
