@@ -5,75 +5,114 @@
 }
 
 body {
-  min-height: 100dvh;
+  max-height: 100dvh;
 
   padding: 1rem;
 
+  overflow: hidden;
 }
 
-#main-grid {
-  height: 80vh;
 
+#main-grid {
   padding-right: 1rem;
   padding-bottom: 1rem;
 
-  overflow: auto;
+  user-select: none;
 }
 
 #cell-properties {
   display: flex;
   align-items: center;
-  padding: 1rem 0;
+  flex-wrap: wrap;
   gap: 1rem;
+
+  padding: 1rem 0;
+}
+
+.input-group {
+  display: flex;
+  align-items: center;
 }
 
 
-#column-header {
-  width: 100%;
-  height: 30px;
+.toggle-cell-props label {
+  width: 20px;
+  height: 20px;
 
   display: flex;
+  justify-content: center;
 
-  margin-left: 50px;
+  background-color: rgba(128, 128, 128, 0.233);
+
+  border: 1px solid;
+
+  cursor: pointer;
+  user-select: none;
 }
 
-.col-header {
-  width: 100px;
-  height: 30px;
+.toggle-cell-props input:checked+label {
+  background-color: light-dark(black, white);
+  color: light-dark(white, black);
+  border-color: light-dark(black, white);
+}
 
+.toggle-cell-props input:disabled {
+  opacity: .5;
+  cursor: initial;
+}
+
+.custom-button>input {
+  background-color: rgba(190, 188, 188, 0.514);
+
+  border: 1px solid black;
+
+  padding: .5rem;
+
+  cursor: pointer;
+}
+
+.merge-btn input[disabled] {
+  opacity: .5;
+}
+
+.import-btn>label {
+  background-color: rgba(190, 188, 188, 0.514);
+
+  border: 1px solid black;
+
+  padding: .5rem;
+
+  cursor: pointer;
+}
+
+.header {
   display: flex;
   align-items: center;
   justify-content: center;
 
+  border: 1px solid black;
+  border-color: light-dark(black, white);
 
 }
 
-#row {
+
+.column-header:not(:first-child) {
+  border-left: none;
+}
+
+#row-part {
   display: flex;
-}
-
-#row-header {
-  width: 50px;
-
-  display: flex;
-  flex-direction: column;
 
 }
 
-.r-header {
-  width: 50px;
-  height: 30px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
+#row-part>:not(.row-header-container) {
+  background-color: white;
 }
 
-
-#cell-grid {
-  display: grid;
-  gap: 0px;
+.row-header:not(:first-child) {
+  border-top: none;
 }
+
 
 .cell {
   display: flex;
@@ -88,11 +127,13 @@ body {
   outline: 1px solid black;
 }
 
-.cell.focused {
+
+.cell:focus {
   box-shadow: inset 0 0 0 2px blue, inset -1px -1px 0 2px blue;
 }
 
-.cell:focus {
+.cell.active-cell {
+  border: 10px solid black;
   box-shadow: inset 0 0 0 2px blue, inset -1px -1px 0 2px blue;
 }
 
@@ -108,8 +149,6 @@ body {
   padding: 2px;
 
   background-color: transparent;
-
-  user-select: none;
 }
 
 .cell-input {
@@ -127,60 +166,4 @@ body {
 
 .cell-input:focus {
   box-shadow: inset 0 0 0 2px blue, inset -1px -1px 0 2px blue;
-}
-
-.toogle-cell-props label {
-  width: 20px;
-  height: 20px;
-
-  display: flex;
-  justify-content: center;
-
-  background-color: rgba(128, 128, 128, 0.233);
-
-  border: 1px solid black;
-
-  cursor: pointer;
-  user-select: none;
-}
-
-.toogle-cell-props label:hover {
-  background-color: aliceblue;
-}
-
-.toogle-cell-props input:checked+label {
-  box-shadow: inset 0 0 3px black;
-  background-color: aliceblue;
-}
-
-.toogle-cell-props input:disabled+label {
-  opacity: .5;
-  cursor: initial;
-}
-
-.merge-button input {
-  width: 50px;
-  height: 25px;
-
-  background-color: rgba(128, 128, 128, 0.151);
-
-  border: none;
-  outline: 1px solid black;
-
-  cursor: pointer;
-}
-
-.merge-button input:disabled {
-  opacity: .5;
-}
-
-.download-button input {
-
-  background-color: rgba(190, 188, 188, 0.514);
-
-  padding: .5rem;
-
-  border: 1px solid black;
-
-  cursor: pointer;
 }

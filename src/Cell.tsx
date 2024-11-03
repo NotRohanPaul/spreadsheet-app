@@ -1,10 +1,15 @@
-import { memo, useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { CellProps } from "./Excel";
 
-const Cell = memo(({
+const Cell = ({
     cell,
     inputCellId,
     handleInputBlur,
-}: any) => {
+}: {
+    cell: CellProps,
+    inputCellId: string | null,
+    handleInputBlur: (cellId: string, newValue: string) => void,
+}) => {
     const inputCellRef = useRef<HTMLInputElement>(null);
 
     // Focus input when cell is clicked
@@ -17,7 +22,8 @@ const Cell = memo(({
     const handleBlur = useCallback(() => {
         if (inputCellRef.current) {
             const updatedValue = inputCellRef.current.value;
-            handleInputBlur(cell.id, updatedValue);
+            if (cell.id)
+                handleInputBlur(cell.id, updatedValue);
 
             const parentCell = inputCellRef.current.closest('.cell') as HTMLElement;
             parentCell.classList.remove("focused");
@@ -39,7 +45,6 @@ const Cell = memo(({
                 textDecoration: cell.isStrikethrough ? "line-through" : "none",
             }}
             role="button"
-            tabIndex={0}
         >
             {inputCellId !== cell.id ?
                 <p className="cell-data" id={(cell.id) + "-data"}>
@@ -65,6 +70,6 @@ const Cell = memo(({
             }
         </div>
     );
-});
+};
 
 export default Cell;

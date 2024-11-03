@@ -1,29 +1,47 @@
+import { FixedSizeList as List } from "react-window";
 import { indexToAlphabetHeaders } from "./utils";
+import { forwardRef, Ref, } from "react";
 
-export function ColumnHeader({ columnLimit }: { columnLimit: number }) {
+export const ColumnHeader = forwardRef(({ width, columnLimit }: { columnLimit: number, width: number }, ref) => {
     return (
-        <div id="column-header"
-            style={{
-                width: `calc(100px * ${columnLimit})`,
-            }}
-        >
-            {Array.from({ length: columnLimit }, (_, i) => (
-                <div key={"column-header-" + i} className="col-header">
-                    {indexToAlphabetHeaders(i)}
-                </div>
-            ))}
-        </div>
+        <div className="column-header-container">
+            <List
+                ref={ref as Ref<List>}
+                width={width - 115}
+                height={30}
+                itemCount={columnLimit}
+                itemSize={100}
+                layout="horizontal"
+                style={{ overflow: "hidden", marginLeft: "50px" }}
+            >
+                {({ index, style }) => (
+                    <div key={`column-header-${index}`} style={{ ...style, width: "100px" }} className="column-header header">
+                        {indexToAlphabetHeaders(index)}
+                    </div>
+                )}
+            </List>
+        </div >
     );
-}
+});
 
-export function RowHeader({ rowLimit }: { rowLimit: number }) {
+export const RowHeader = forwardRef(({ height, rowLimit }: { rowLimit: number, height: number }, ref) => {
     return (
-        <div id="row-header">
-            {Array.from({ length: rowLimit }, (_, i) => (
-                <div key={"row-header-" + i} className="r-header">
-                    {i + 1}
-                </div>
-            ))}
-        </div>
+        <div className="row-header-container">
+            <List
+                ref={ref as Ref<List>}
+                width={50}
+                height={height - 20}
+                itemCount={rowLimit}
+                itemSize={30}
+                layout="vertical"
+                style={{ overflow: "hidden" }}
+            >
+                {({ index, style }) => (
+                    <div key={`row-header-${index}`} style={{ ...style, height: "30px" }} className="row-header header">
+                        {index + 1}
+                    </div>
+                )}
+            </List>
+        </div >
     );
-}
+});

@@ -1,3 +1,4 @@
+
 export const rgbToHex = (rgb: string): string => {
     const result = rgb.match(/\d+/g);
     if (result && result.length === 3) {
