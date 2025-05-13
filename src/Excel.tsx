@@ -1,6 +1,6 @@
 import {
     ChangeEvent,
-    MouseEvent,
+    FocusEvent,
     Suspense,
     useCallback,
     useEffect,
@@ -33,12 +33,33 @@ export interface CellProps {
     isStrikethrough: boolean,
 }
 
+const CellRenderer = ({ columnIndex, rowIndex, style, data: { cellsDataRef, inputCellId, handleInputBlur } }: GridChildComponentProps) => {
+    const cell = cellsDataRef.current[rowIndex]?.[columnIndex];
+
+    if (!cell) return null;
+
+    return (
+        <div
+            style={style}
+        >
+            <Cell
+                key={cell.id}
+                cell={cell}
+                inputCellId={inputCellId}
+                handleInputBlur={handleInputBlur}
+            />
+        </div>
+    );
+};
+
+
 // Main Excel Component
 export default function Excel() {
     const COLUMN_LIMIT = 100;
     const ROW_LIMIT = 100;
 
-    const [cellsData, setCellsData] = useState<Array<Array<CellProps>>>([]);
+    const cellsDataRef = useRef<Array<Array<CellProps>>>([]);
+    const [version, setVersion] = useState(0);
     const [inputCellId, setInputCellId] = useState<string | null>(null);
     const [editableCellProps, setEditableCellProps] = useState<Record<string, string | boolean>>({
         bgColor: '#ffffff',
@@ -50,9 +71,6 @@ export default function Excel() {
     });
 
     const focusedCellRef = useRef<HTMLElement | null>(null);
-    const lastFocusedCellIdRef = useRef<HTMLElement | null>(null);
-
-
     const localStorageDelay = useRef<number | null>(null)
 
     const [isInitialized, setIsInitialized] = useState(false);
@@ -70,7 +88,7 @@ export default function Excel() {
         const savedRowLimit = Number(localStorage.getItem('ROW_LIMIT'));
         const savedColumnLimit = Number(localStorage.getItem('COLUMN_LIMIT'));
         if (savedCellsData && savedRowLimit === ROW_LIMIT && savedColumnLimit === COLUMN_LIMIT) {
-            setCellsData(JSON.parse(savedCellsData));
+            cellsDataRef.current = JSON.parse(savedCellsData);
         } else {
             const createCellArr = () => {
                 const newCellsData = Array.from({ length: ROW_LIMIT }, (_, i) =>
@@ -87,8 +105,9 @@ export default function Excel() {
                 );
                 return newCellsData;
             };
-            setCellsData(createCellArr());
+            cellsDataRef.current = createCellArr();
         }
+        setVersion((v) => v + 1)
         setIsInitialized(true);
     }, []);
 
@@ -101,9 +120,9 @@ export default function Excel() {
         }
 
         localStorageDelay.current = setTimeout(() => {
-            if (cellsData.length > 0) {
+            if (cellsDataRef.current.length > 0) {
                 try {
-                    localStorage.setItem('excelCellsData', JSON.stringify(cellsData));
+                    localStorage.setItem('excelCellsData', JSON.stringify(cellsDataRef.current));
                     localStorage.setItem('ROW_LIMIT', ROW_LIMIT.toString());
                     localStorage.setItem('COLUMN_LIMIT', COLUMN_LIMIT.toString());
                 }
@@ -119,7 +138,7 @@ export default function Excel() {
             }
         }
 
-    }, [cellsData, isInitialized]);
+    }, [version, isInitialized]);
 
     const handleScroll = ({ scrollTop, scrollLeft }: GridOnScrollProps) => {
         if (columnHeaderRef.current) {
@@ -146,42 +165,25 @@ export default function Excel() {
     }, []);
 
 
-    // useEffect(() => {
-    //     const handleOutsideClick = (e: Event) => {
-    //         const grid = gridRef.current;
+    useEffect(() => {
+        const handleGridFocus = () => {
+            { console.log(focusedCellRef) }
+            if (focusedCellRef.current) {
+                focusedCellRef.current.focus();
+            }
+        };
 
-    //         if (focusedCellRef.current) {
-    //             if (!grid?.contains(e.target as Node)) {
-    //                 focusedCellRef.current.focus();
-    //             }
-    //         }
-    //     };
+        const gridElement = gridRef.current;
+        if (gridElement) {
+            gridElement.addEventListener('focus', handleGridFocus);
+        }
 
-    //     document.addEventListener("mousedown", handleOutsideClick);
-    //     return () => {
-    //         document.removeEventListener("mousedown", handleOutsideClick);
-    //     };
-    // }, []);
-
-    // useEffect(() => {
-    //     const handleTabPress = (e: KeyboardEvent) => {
-    //         if (e.key === "Tab") {
-    //             const grid = gridRef.current;
-    //             const activeElement = document.activeElement;
-
-    //             if (activeElement && !grid?.contains(activeElement) && lastFocusedCellIdRef.current) {
-    //                 e.preventDefault();
-    //                 const lastCell = document.getElementById(lastFocusedCellIdRef.current + "-cell");
-    //                 lastCell?.focus();
-    //             }
-    //         }
-    //     };
-
-    //     document.addEventListener("keydown", handleTabPress);
-    //     return () => {
-    //         document.removeEventListener("keydown", handleTabPress);
-    //     };
-    // }, []);
+        return () => {
+            if (gridElement) {
+                gridElement.removeEventListener('focus', handleGridFocus);
+            }
+        };
+    }, []);
 
 
 
@@ -201,21 +203,9 @@ export default function Excel() {
 
             const [rowIdx, colIdx] = focusedCellRef.current.id.split("-").map(Number);
 
-            setCellsData(prevCellsData => {
-                const updatedRows = [...prevCellsData];
-                const updatedRow = [...updatedRows[rowIdx]];
-
-                updatedRow[colIdx] = {
-                    ...updatedRow[colIdx],
-                    [cellProp]: updatedValue,
-                };
-
-                updatedRows[rowIdx] = updatedRow;
-
-                return updatedRows;
-            });
-
-            setEditableCellProps(prevProps => ({ ...prevProps, [cellProp]: updatedValue }));
+            (cellsDataRef.current[rowIdx][colIdx][cellProp] as string | boolean) = updatedValue;
+            setEditableCellProps((prevProps) => ({ ...prevProps, [cellProp]: updatedValue }));
+            setVersion((v) => v + 1);
         }
     }, []);
 
@@ -224,30 +214,9 @@ export default function Excel() {
         if (focusedCellRef.current) {
             const [rowIdx, colIdx] = focusedCellRef.current.id.split("-").map(Number);
             if (colIdx < (COLUMN_LIMIT - 1)) {
-                setCellsData(prevCellsData => {
-                    const updatedRows = [...prevCellsData];
-                    const updatedRow = [...updatedRows[rowIdx]]
-
-                    updatedRow[colIdx] = {
-                        ...updatedRow[colIdx],
-                        cellData: updatedRow[colIdx].cellData + updatedRow[colIdx + 1].cellData,
-                    }
-
-                    updatedRow[colIdx + 1] = {
-                        ...updatedRow[colIdx + 1],
-                        cellData: "",
-                        bgColor: "#ffffff",
-                        textColor: "#000000",
-                        fontFamily: "sans-serif",
-                        isBold: false,
-                        isItalic: false,
-                        isStrikethrough: false,
-                    };
-
-                    updatedRows[rowIdx] = updatedRow
-
-                    return updatedRows
-                })
+                cellsDataRef.current[rowIdx][colIdx].cellData += cellsDataRef.current[rowIdx][colIdx + 1].cellData;
+                cellsDataRef.current[rowIdx][colIdx + 1].cellData = "";
+                setVersion((v) => v + 1);
             }
         }
     }
@@ -255,47 +224,25 @@ export default function Excel() {
     const handleInputBlur = (cellId: string, newValue: string) => {
         const [rowIdx, colIdx] = cellId.split("-").map(Number);
 
-        setCellsData(prevCellsData => {
-            const updatedRows = [...prevCellsData];
-            const updatedRow = [...updatedRows[rowIdx]];
-
-            updatedRow[colIdx] = {
-                ...updatedRow[colIdx],
-                cellData: newValue,
-            };
-
-            updatedRows[rowIdx] = updatedRow;
-            return updatedRows;
-        });
-
-
-
+        cellsDataRef.current[rowIdx][colIdx].cellData = newValue;
+        setVersion((v) => v + 1);
         setInputCellId(null);
     };
 
     const handleClear = () => {
         if (focusedCellRef.current) {
             const [rowIdx, colIdx] = focusedCellRef.current.id.split("-").map(Number);
-
-            setCellsData(prevCellsData => {
-                const updatedRows = [...prevCellsData];
-                const updatedRow = [...updatedRows[rowIdx]];
-
-                updatedRow[colIdx] = {
-                    ...updatedRow[colIdx],
-                    cellData: "",
-                    bgColor: "#ffffff",
-                    textColor: "#000000",
-                    fontFamily: "sans-serif",
-                    isBold: false,
-                    isItalic: false,
-                    isStrikethrough: false,
-                };
-
-                updatedRows[rowIdx] = updatedRow;
-                return updatedRows;
-            });
-
+            cellsDataRef.current[rowIdx][colIdx] = {
+                ...cellsDataRef.current[rowIdx][colIdx],
+                cellData: "",
+                bgColor: "#ffffff",
+                textColor: "#000000",
+                fontFamily: "sans-serif",
+                isBold: false,
+                isItalic: false,
+                isStrikethrough: false,
+            };
+            setVersion((v) => v + 1);
             setEditableCellProps({
                 bgColor: '#ffffff',
                 textColor: '#000000',
@@ -308,21 +255,17 @@ export default function Excel() {
     };
 
     const handleClearAll = () => {
-        setCellsData(prevCellsData => {
-            return prevCellsData.map(row =>
-                row.map(cell => ({
-                    ...cell,
-                    cellData: "",
-                    bgColor: "#ffffff",
-                    textColor: "#000000",
-                    fontFamily: "sans-serif",
-                    isBold: false,
-                    isItalic: false,
-                    isStrikethrough: false,
-                }))
-            );
-        });
-
+        cellsDataRef.current = cellsDataRef.current.map(row => row.map(cell => ({
+            ...cell,
+            cellData: "",
+            bgColor: "#ffffff",
+            textColor: "#000000",
+            fontFamily: "sans-serif",
+            isBold: false,
+            isItalic: false,
+            isStrikethrough: false,
+        })))
+        setVersion((v) => v + 1);
         setEditableCellProps({
             bgColor: '#ffffff',
             textColor: '#000000',
@@ -336,7 +279,7 @@ export default function Excel() {
 
     const handleDownload = () => {
         try {
-            const csv = cellsData.map((row) => {
+            const csv = cellsDataRef.current.map((row) => {
                 return (row.map((col) => col.cellData).join(",") + "\n")
             }).join("")
             const link = document.createElement("a");
@@ -383,21 +326,21 @@ export default function Excel() {
                 return importedData;
             };
 
-            setCellsData((prev) => handleImportedData(prev));
+            cellsDataRef.current = handleImportedData(cellsDataRef.current);
+            setVersion((v) => v + 1);
         };
 
         reader.readAsText(file);
     };
 
-    const handleCellFocus = (e: MouseEvent<HTMLElement>) => {
-        e.preventDefault()
+    const handleCellFocus = (e: FocusEvent<HTMLElement>) => {
         const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement;
+        if (cell?.id === focusedCellRef.current?.id || !cell) return;
         const cellId = cell.id.split("-").slice(0, -1).join('-');
 
-        if (cell.id === focusedCellRef.current?.id || !cell) return;
-
-        cell.classList.add("active-cell")
-        { console.log(cell) }
+        focusedCellRef.current?.classList.remove("active-cell");
+        focusedCellRef.current = cell;
+        focusedCellRef.current.classList.add("active-cell")
 
         cell.ondblclick = () => {
             setInputCellId(cellId);
@@ -417,25 +360,6 @@ export default function Excel() {
             isStrikethrough: cell.style.textDecoration === "line-through"
         });
 
-        lastFocusedCellIdRef.current = focusedCellRef.current;
-        focusedCellRef.current = cell;
-    };
-
-    const CellRenderer = ({ columnIndex, rowIndex, style }: GridChildComponentProps) => {
-        const cell = cellsData[rowIndex]?.[columnIndex];
-
-        if (!cell) return null;
-
-        return (
-            <div style={style}>
-                <Cell
-                    key={cell.id}
-                    cell={cell}
-                    inputCellId={inputCellId}
-                    handleInputBlur={handleInputBlur}
-                />
-            </div>
-        );
     };
 
 
@@ -459,11 +383,13 @@ export default function Excel() {
             <div id="main-grid">
                 <ColumnHeader width={gridDimensions.width} columnLimit={COLUMN_LIMIT} ref={columnHeaderRef} />
                 <div id="row-part"
-                    onClick={handleCellFocus}
+                    onFocus={handleCellFocus}
+                    tabIndex={0}
                     ref={gridRef}
                 >
                     <RowHeader height={gridDimensions.height} rowLimit={ROW_LIMIT} ref={rowHeaderRef} />
                     <Grid
+                        itemData={{ cellsDataRef, inputCellId, handleInputBlur }}
                         width={gridDimensions.width}
                         height={gridDimensions.height}
                         columnCount={COLUMN_LIMIT}

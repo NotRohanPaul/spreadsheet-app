@@ -45,6 +45,7 @@ const Cell = ({
                 textDecoration: cell.isStrikethrough ? "line-through" : "none",
             }}
             role="button"
+            tabIndex={0}
         >
             {inputCellId !== cell.id ?
                 <p className="cell-data" id={(cell.id) + "-data"}>

@@ -1,4 +1,4 @@
-import { MouseEvent } from "react";
+import { KeyboardEvent, MouseEvent } from "react";
 
 export function ToggleButton({
     id,
@@ -15,6 +15,11 @@ export function ToggleButton({
     handleClick: (e: MouseEvent<HTMLInputElement>) => void;
     style: React.CSSProperties;
 }) {
+    const handleKeyDown = (e: KeyboardEvent<HTMLLabelElement>) => {
+        if (e.key === "Enter" || e.key === " ") {
+            document.getElementById(id)?.click()
+        };
+    }
     return (
         <div className="toggle-cell-props">
             <input
@@ -25,7 +30,12 @@ export function ToggleButton({
                 onClick={handleClick}
                 hidden
             />
-            <label htmlFor={id} style={style}>{label}</label>
+            <label
+                htmlFor={id}
+                style={style}
+                tabIndex={0}
+                onKeyDown={handleKeyDown}
+            >{label}</label>
         </div>
     );
 }

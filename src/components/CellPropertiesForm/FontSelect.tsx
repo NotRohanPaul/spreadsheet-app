@@ -18,7 +18,8 @@ export function FontSelect({
                 disabled={disabled}
                 onChange={handleChange}
             >
-                <option value="sans">sans</option>
+                <option
+                    value="sans">sans</option>
                 <option value="sans-serif">sans-serif</option>
                 <option value="cursive">cursive</option>
                 <option value="monospace">monospace</option>

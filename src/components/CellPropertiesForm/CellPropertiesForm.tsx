@@ -63,7 +63,10 @@ export default function CellPropertiesForm({
             <FontSelect
                 value={(localProps?.fontFamily || 'sans-serif') as string}
                 disabled={focusedCell === null}
-                handleChange={(e) => handleCellPropChange(e, "fontFamily")}
+                handleChange={(e) => {
+                    handleCellPropChange(e, "fontFamily")
+                }
+                }
             />
 
             <ToggleButton
@@ -117,7 +120,7 @@ export default function CellPropertiesForm({
 
             <FileSelect
                 id="excel-import"
-                label="Import"
+                label="Import CSV"
                 onChange={handleImportCsv}
                 className="import-btn"
             />
